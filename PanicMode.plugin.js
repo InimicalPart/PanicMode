@@ -2,23 +2,39 @@
  * @name PanicMode
  * @author Inimi
  * @authorId 814623079346470993
- * @version 1.0.5
+ * @version 1.0.7
  * @description Disables/Enables all plugins and your theme with a hotkey.
  *
- * @source
+ * @updateUrl https://raw.githubusercontent.com/InimicalPart/PanicMode/main/PanicMode.plugin.js
  * @website http://inimicalpart.com
  * @donate https://www.paypal.me/inimicalpart
  */
 
 let activeThemes = [];
+let activePluginsNames = [];
+let activePluginsIds = [];
 let settings = null;
 let currentObj = null;
+let panicMode = false;
+let name = "PanicMode";
 function areAnyPluginsActive() {
+  let active = [];
   for (let i of BdApi.Plugins.getAll()) {
-    if (i.name === "BDFDB") continue;
+    if (
+      i.name === "BDFDB" ||
+      i.name === name ||
+      i.id === "BDFDB" ||
+      i.id === name
+    )
+      continue;
     if (BdApi.Plugins.isEnabled(i.name)) {
-      return true;
+      active.push(i.name);
+    } else if (BdApi.Plugins.isEnabled(i.id)) {
+      active.push(i.id);
     }
+  }
+  if (active.length > 0) {
+    return [true, active];
   }
   return false;
 }
@@ -30,20 +46,41 @@ function areAnyThemesActive() {
   }
   return false;
 }
-function getActivePlugins() {
-  activePlugins = [];
+async function getActivePlugins() {
+  activePluginsNames = [];
+  activePluginsIds = [];
   for (let i of BdApi.Plugins.getAll()) {
+    if (
+      i.name === "BDFDB" ||
+      i.name === name ||
+      i.id === "BDFDB" ||
+      i.id === name
+    )
+      continue;
     if (BdApi.Plugins.isEnabled(i.name)) {
-      activePlugins.push(i.name);
+      activePluginsNames.push(i.name);
+    } else if (BdApi.Plugins.isEnabled(i.id)) {
+      activePluginsIds.push(i.id);
     }
   }
 }
-function changePlugins(state) {
+async function changePlugins(state) {
   if (state === "disable") {
-    getActivePlugins();
+    await getActivePlugins();
   }
-  for (let i of activePlugins) {
-    if (i === "BDFDB" || i === "PanicMode") continue;
+  //   console.log(activePluginsNames, activePluginsIds);
+  for (let i of activePluginsNames) {
+    if (i === "BDFDB" || i === name) continue;
+    console.log("NAME: " + i);
+    if (state === "enable") {
+      BdApi.Plugins.enable(i);
+    } else {
+      BdApi.Plugins.disable(i);
+    }
+  }
+  for (let i of activePluginsIds) {
+    if (i === "BDFDB" || i === name) continue;
+    console.log("ID: " + i);
     if (state === "enable") {
       BdApi.Plugins.enable(i);
     } else {
@@ -72,7 +109,9 @@ function getActiveThemes() {
   }
 }
 function togglePanic() {
-  if (areAnyPluginsActive() || areAnyThemesActive()) {
+  console.log(areAnyPluginsActive(), areAnyThemesActive());
+  if (typeof areAnyPluginsActive() === "object" || areAnyThemesActive()) {
+    panicMode = true;
     changePlugins("disable");
     changeThemes("disable");
     BdApi.showToast("Panic Mode enabled.", {
@@ -80,6 +119,15 @@ function togglePanic() {
       timeout: 1500,
     });
   } else {
+    if (!panicMode) {
+      return BdApi.showToast(
+        "No plugins or themes are active. Can't enable Panic Mode.",
+        {
+          type: "error",
+        }
+      );
+    }
+    panicMode = false;
     changePlugins("enable");
     changeThemes("enable");
     BdApi.showToast("Panic Mode disabled.", {
@@ -90,8 +138,16 @@ function togglePanic() {
 function KeyPress(e) {
   if (!currentObj) currentObj = panicKeySetting();
   var evtobj = window.event ? event : e;
+  console.log(
+    currentObj,
+    e,
+    evtobj.code === "Key" + currentObj.finalKey.toUpperCase(),
+    evtobj.ctrlKey === currentObj.ctrlNeeded,
+    evtobj.altKey === currentObj.altNeeded,
+    evtobj.shiftKey === currentObj.shiftNeeded
+  );
   if (
-    evtobj.key === currentObj.finalKey &&
+    evtobj.code === "Key" + currentObj.finalKey.toUpperCase() &&
     evtobj.ctrlKey === currentObj.ctrlNeeded &&
     evtobj.altKey === currentObj.altNeeded &&
     evtobj.shiftKey === currentObj.shiftNeeded
@@ -135,6 +191,9 @@ function panicKeySetting() {
 }
 ZeresPluginLibrary = global.ZeresPluginLibrary;
 module.exports = class PanicMode {
+  getVersion() {
+    return "1.0.7";
+  }
   start() {
     document.addEventListener("keypress", KeyPress);
   }
@@ -148,7 +207,7 @@ module.exports = class PanicMode {
     if (!global.ZeresPluginLibrary) {
       BdApi.showConfirmationModal(
         "Library Missing",
-        `The library plugin needed for PanicMode is missing. Please click Download Now to install it.`,
+        `The library plugin needed for ${name} is missing. Please click Download Now to install it.`,
         {
           confirmText: "Download Now",
           cancelText: "Cancel",
@@ -176,8 +235,13 @@ module.exports = class PanicMode {
         }
       );
     }
+    ZeresPluginLibrary.PluginUpdater.checkForUpdate(
+      name,
+      this.getVersion(),
+      "https://raw.githubusercontent.com/InimicalPart/PanicMode/main/PanicMode.plugin.js"
+    );
     this.settings = ZeresPluginLibrary.PluginUtilities.loadSettings(
-      "PanicMode",
+      name,
       this.defaultSettings
     );
     settings = this.settings;
@@ -262,10 +326,7 @@ module.exports = class PanicMode {
     );
     return ZeresPluginLibrary.Settings.SettingPanel.build(
       (_) =>
-        ZeresPluginLibrary.PluginUtilities.saveSettings(
-          "PanicMode",
-          this.settings
-        ),
+        ZeresPluginLibrary.PluginUtilities.saveSettings(name, this.settings),
       ...list
     );
   }
