@@ -2,13 +2,36 @@
  * @name PanicMode
  * @author Inimi
  * @authorId 814623079346470993
- * @version 1.0.7
+ * @version 1.0.9
  * @description Disables/Enables all plugins and your theme with a hotkey.
  *
+ * @source https://github.com/InimicalPart/PanicMode/blob/main/PanicMode.plugin.js
  * @updateUrl https://raw.githubusercontent.com/InimicalPart/PanicMode/main/PanicMode.plugin.js
  * @website http://inimicalpart.com
  * @donate https://www.paypal.me/inimicalpart
  */
+
+/*@cc_on
+@if (@_jscript)
+    // Offer to self-install for clueless users that try to run this directly.
+    var shell = WScript.CreateObject("WScript.Shell");
+    var fs = new ActiveXObject("Scripting.FileSystemObject");
+    var pathPlugins = shell.ExpandEnvironmentStrings("%APPDATA%\\BetterDiscord\\plugins");
+    var pathSelf = WScript.ScriptFullName;
+    // Put the user at ease by addressing them in the first person
+    shell.Popup("It looks like you've mistakenly tried to run me directly. \n(Don't do that!)", 0, "I'm a plugin for BetterDiscord", 0x30);
+    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
+        shell.Popup("I'm in the correct folder already.", 0, "I'm already installed", 0x40);
+    } else if (!fs.FolderExists(pathPlugins)) {
+        shell.Popup("I can't find the BetterDiscord plugins folder.\nAre you sure it's even installed?", 0, "Can't install myself", 0x10);
+    } else if (shell.Popup("Should I copy myself to BetterDiscord's plugins folder for you?", 0, "Do you need some help?", 0x34) === 6) {
+        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
+        // Show the user where to put plugins in the future
+        shell.Exec("explorer " + pathPlugins);
+        shell.Popup("I'm installed!", 0, "Successfully installed", 0x40);
+    }
+    WScript.Quit();
+@else@*/
 
 let activeThemes = [];
 let activePluginsNames = [];
@@ -16,15 +39,38 @@ let activePluginsIds = [];
 let settings = null;
 let currentObj = null;
 let panicMode = false;
-let name = "PanicMode";
+const config = {
+  info: {
+    name: "PanicMode",
+    authors: [
+      {
+        name: "Inimi",
+        discord_id: "814623079346470993",
+        github_username: "Inimi",
+      },
+    ],
+    version: "1.0.9",
+    description: "Disables/Enables all plugins and your theme with a hotkey.",
+    github: "https://github.com/InimicalPart",
+    github_raw:
+      "https://raw.githubusercontent.com/InimicalPart/PanicMode/main/PanicMode.plugin.js",
+  },
+  changelog: [
+    {
+      title: "Added",
+      type: "added",
+      items: ["Added plugin download for XenoLib"],
+    },
+  ],
+};
 function areAnyPluginsActive() {
   let active = [];
   for (let i of BdApi.Plugins.getAll()) {
     if (
       i.name === "BDFDB" ||
-      i.name === name ||
+      i.name === config.info.name ||
       i.id === "BDFDB" ||
-      i.id === name
+      i.id === config.info.name
     )
       continue;
     if (BdApi.Plugins.isEnabled(i.name)) {
@@ -52,9 +98,9 @@ async function getActivePlugins() {
   for (let i of BdApi.Plugins.getAll()) {
     if (
       i.name === "BDFDB" ||
-      i.name === name ||
+      i.name === config.info.name ||
       i.id === "BDFDB" ||
-      i.id === name
+      i.id === config.info.name
     )
       continue;
     if (BdApi.Plugins.isEnabled(i.name)) {
@@ -70,7 +116,7 @@ async function changePlugins(state) {
   }
   //   console.log(activePluginsNames, activePluginsIds);
   for (let i of activePluginsNames) {
-    if (i === "BDFDB" || i === name) continue;
+    if (i === "BDFDB" || i === config.info.name) continue;
     console.log("NAME: " + i);
     if (state === "enable") {
       BdApi.Plugins.enable(i);
@@ -79,7 +125,7 @@ async function changePlugins(state) {
     }
   }
   for (let i of activePluginsIds) {
-    if (i === "BDFDB" || i === name) continue;
+    if (i === "BDFDB" || i === config.info.name) continue;
     console.log("ID: " + i);
     if (state === "enable") {
       BdApi.Plugins.enable(i);
@@ -190,10 +236,9 @@ function panicKeySetting() {
   }
 }
 ZeresPluginLibrary = global.ZeresPluginLibrary;
+
 module.exports = class PanicMode {
-  getVersion() {
-    return "1.0.7";
-  }
+  config = config;
   start() {
     document.addEventListener("keypress", KeyPress);
   }
@@ -203,49 +248,99 @@ module.exports = class PanicMode {
   load() {
     this.defaultSettings = {
       panicKey: "CTRL+ALT+P",
+      seenChangelogForVersion: "",
     };
-    if (!global.ZeresPluginLibrary) {
+    // if (!bdApi.Plugins.isEnabled("XenoLib") || !bdApi.Plugins.isEnabled("ZeresPluginLibrary")) {
+    // BdApi.Plugins.enable("XenoLib");
+    // BdApi.Plugins.enable("ZeresPluginLibrary");
+    // }
+    if (!global.ZeresPluginLibrary || !global.XenoLib) {
       BdApi.showConfirmationModal(
         "Library Missing",
-        `The library plugin needed for ${name} is missing. Please click Download Now to install it.`,
+        `Some required plugins that are needed for ${config.info.name} are missing. Please click Download Now to install them.`,
         {
           confirmText: "Download Now",
           cancelText: "Cancel",
           onConfirm: () => {
-            require("request").get(
-              "https://rauenzi.github.io/BDPluginLibrary/release/0PluginLibrary.plugin.js",
-              async (error, response, body) => {
-                if (error)
-                  return require("electron").shell.openExternal(
-                    "https://betterdiscord.net/ghdl?url=https://raw.githubusercontent.com/rauenzi/BDPluginLibrary/master/release/0PluginLibrary.plugin.js"
+            if (!global.ZeresPluginLibrary) {
+              require("request").get(
+                "https://rauenzi.github.io/BDPluginLibrary/release/0PluginLibrary.plugin.js",
+                async (error, response, body) => {
+                  if (error)
+                    return require("electron").shell.openExternal(
+                      "https://betterdiscord.net/ghdl?url=https://raw.githubusercontent.com/rauenzi/BDPluginLibrary/master/release/0PluginLibrary.plugin.js"
+                    );
+                  await new Promise((r) =>
+                    require("fs").writeFile(
+                      require("path").join(
+                        BdApi.Plugins.folder,
+                        "0PluginLibrary.plugin.js"
+                      ),
+                      body,
+                      r
+                    )
                   );
-                await new Promise((r) =>
-                  require("fs").writeFile(
-                    require("path").join(
-                      BdApi.Plugins.folder,
-                      "0PluginLibrary.plugin.js"
-                    ),
-                    body,
-                    r
-                  )
-                );
+                }
+              );
+            }
+            if (!global.XenoLib) {
+              require("request").get(
+                "https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/1XenoLib.plugin.js",
+                async (error, response, body) => {
+                  if (error)
+                    return require("electron").shell.openExternal(
+                      "https://betterdiscord.net/ghdl?url=https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/master/Plugins/1XenoLib.plugin.js"
+                    );
+                  await new Promise((r) =>
+                    require("fs").writeFile(
+                      require("path").join(
+                        BdApi.Plugins.folder,
+                        "1XenoLib.plugin.js"
+                      ),
+                      body,
+                      r
+                    )
+                  );
+                }
+              );
+            }
+          },
+          onCancel: () => {
+            BdApi.showToast(
+              "Plugin will not load without the required plugins.",
+              {
+                type: "error",
               }
             );
+            BdApi.Plugins.disable(config.info.name);
           },
         }
       );
     }
     ZeresPluginLibrary.PluginUpdater.checkForUpdate(
-      name,
-      this.getVersion(),
+      config.info.name,
+      config.info.version,
       "https://raw.githubusercontent.com/InimicalPart/PanicMode/main/PanicMode.plugin.js"
     );
     this.settings = ZeresPluginLibrary.PluginUtilities.loadSettings(
-      name,
+      config.info.name,
       this.defaultSettings
     );
     settings = this.settings;
     currentObj = panicKeySetting();
+    // ZeresPluginLibrary.buildPlugin(config);
+    if (settings.seenChangelogForVersion !== config.info.version) {
+      global.XenoLib.showChangelog(
+        `${config.info.name} has been updated!`,
+        config.info.version,
+        config.changelog
+      );
+      settings.seenChangelogForVersion = config.info.version;
+      ZeresPluginLibrary.PluginUtilities.saveSettings(
+        config.info.name,
+        settings
+      );
+    }
   }
   getSettingsPanel() {
     const list = [];
@@ -326,8 +421,12 @@ module.exports = class PanicMode {
     );
     return ZeresPluginLibrary.Settings.SettingPanel.build(
       (_) =>
-        ZeresPluginLibrary.PluginUtilities.saveSettings(name, this.settings),
+        ZeresPluginLibrary.PluginUtilities.saveSettings(
+          config.info.name,
+          this.settings
+        ),
       ...list
     );
   }
 };
+/*@end@*/
