@@ -2,7 +2,7 @@
  * @name PanicMode
  * @author Inimi
  * @authorId 814623079346470993
- * @version 1.0.9
+ * @version 1.1.0
  * @description Disables/Enables all plugins and your theme with a hotkey.
  *
  * @source https://github.com/InimicalPart/PanicMode/blob/main/PanicMode.plugin.js
@@ -114,10 +114,8 @@ async function changePlugins(state) {
   if (state === "disable") {
     await getActivePlugins();
   }
-  //   console.log(activePluginsNames, activePluginsIds);
   for (let i of activePluginsNames) {
     if (i === "BDFDB" || i === config.info.name) continue;
-    console.log("NAME: " + i);
     if (state === "enable") {
       BdApi.Plugins.enable(i);
     } else {
@@ -126,7 +124,6 @@ async function changePlugins(state) {
   }
   for (let i of activePluginsIds) {
     if (i === "BDFDB" || i === config.info.name) continue;
-    console.log("ID: " + i);
     if (state === "enable") {
       BdApi.Plugins.enable(i);
     } else {
@@ -155,7 +152,6 @@ function getActiveThemes() {
   }
 }
 function togglePanic() {
-  console.log(areAnyPluginsActive(), areAnyThemesActive());
   if (typeof areAnyPluginsActive() === "object" || areAnyThemesActive()) {
     panicMode = true;
     changePlugins("disable");
@@ -184,14 +180,6 @@ function togglePanic() {
 function KeyPress(e) {
   if (!currentObj) currentObj = panicKeySetting();
   var evtobj = window.event ? event : e;
-  console.log(
-    currentObj,
-    e,
-    evtobj.code === "Key" + currentObj.finalKey.toUpperCase(),
-    evtobj.ctrlKey === currentObj.ctrlNeeded,
-    evtobj.altKey === currentObj.altNeeded,
-    evtobj.shiftKey === currentObj.shiftNeeded
-  );
   if (
     evtobj.code === "Key" + currentObj.finalKey.toUpperCase() &&
     evtobj.ctrlKey === currentObj.ctrlNeeded &&
@@ -346,9 +334,7 @@ module.exports = class PanicMode {
     const list = [];
     function buildSetting(data) {
       const { id } = data;
-      console.log(id);
       const setting = global.XenoLib.buildSetting(data);
-      console.log(setting);
       if (id) setting.getElement().id = id;
       return setting;
     }
@@ -396,16 +382,17 @@ module.exports = class PanicMode {
           if (await verifySetting(value, current.id)) {
             this.settings[current.id] = value.toUpperCase();
             settings = this.settings;
+            ZeresPluginLibrary.PluginUtilities.saveSettings(
+              config.info.name,
+              this.settings
+            );
             currentObj = panicKeySetting();
             if (current.callback) current.callback(value);
-          } else {
-            console.log("invalid");
           }
         };
       }
       if (typeof current.value === "undefined")
         current.value = this.settings[current.id];
-      console.log(data, current);
       return this.buildSetting(current);
     }
     this.buildSetting = buildSetting;
