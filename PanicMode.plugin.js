@@ -2,7 +2,7 @@
  * @name PanicMode
  * @author Inimi
  * @authorId 814623079346470993
- * @version 1.1.0
+ * @version 1.1.1
  * @description Disables/Enables all plugins and your theme with a hotkey.
  *
  * @source https://github.com/InimicalPart/PanicMode/blob/main/PanicMode.plugin.js
@@ -57,9 +57,9 @@ const config = {
   },
   changelog: [
     {
-      title: "Added",
-      type: "added",
-      items: ["Added plugin download for XenoLib"],
+      title: "Fixed",
+      type: "fixed",
+      items: ["Removed unnecessary console.logs"],
     },
   ],
 };
