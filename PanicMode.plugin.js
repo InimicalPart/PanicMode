@@ -2,7 +2,7 @@
  * @name PanicMode
  * @author Inimi
  * @authorId 814623079346470993
- * @version 1.1.1
+ * @version 1.1.2
  * @description Disables/Enables all plugins and your theme with a hotkey.
  *
  * @source https://github.com/InimicalPart/PanicMode/blob/main/PanicMode.plugin.js
@@ -49,7 +49,7 @@ const config = {
         github_username: "Inimi",
       },
     ],
-    version: "1.0.9",
+    version: "1.1.2",
     description: "Disables/Enables all plugins and your theme with a hotkey.",
     github: "https://github.com/InimicalPart",
     github_raw:
@@ -59,7 +59,9 @@ const config = {
     {
       title: "Fixed",
       type: "fixed",
-      items: ["Removed unnecessary console.logs"],
+      items: [
+        "Fixed an issue where BetterDiscord would think that PanicMode was outdated when it wasn't",
+      ],
     },
   ],
 };
